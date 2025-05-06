@@ -1,14 +1,14 @@
 -- Autor: beabadoobee 💀
--- Atualizado em: Maio de 2025
--- Discord: github.com/beabadoobee
+-- Atualizado: Maio de 2025
 
 local Players = game:GetService("Players")
 local player = Players.LocalPlayer
 local char = player.Character or player.CharacterAdded:Wait()
 local HRP = char:WaitForChild("HumanoidRootPart")
-local range = 25 -- Distância para atacar inimigos
-local damage = 50 -- Dano por ataque
-local delay = 0.25 -- Tempo entre os ataques
+local mouse = player:GetMouse()
+local UIS = game:GetService("UserInputService")
+
+local range = 50 -- Distância máxima para detectar inimigos
 local enabled = false
 
 -- Interface do botão
@@ -25,24 +25,57 @@ toggle.Text = "KillAura: OFF"
 toggle.Font = Enum.Font.SourceSansBold
 toggle.TextSize = 18
 
--- Função de ataque
-local function attack()
-    for _, mob in pairs(workspace:GetDescendants()) do
-        if mob:IsA("Model") and mob:FindFirstChild("Humanoid") and mob:FindFirstChild("HumanoidRootPart") then
-            local hrp = mob.HumanoidRootPart
-            if (HRP.Position - hrp.Position).Magnitude <= range and mob ~= char then
-                mob.Humanoid:TakeDamage(damage)
+-- Função para encontrar o inimigo mais próximo
+local function getClosestEnemy()
+    local closestEnemy = nil
+    local shortestDistance = range
+
+    for _, enemy in pairs(workspace:GetDescendants()) do
+        if enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy:FindFirstChild("HumanoidRootPart") and enemy ~= char then
+            local distance = (HRP.Position - enemy.HumanoidRootPart.Position).Magnitude
+            if distance < shortestDistance and enemy.Humanoid.Health > 0 then
+                shortestDistance = distance
+                closestEnemy = enemy
             end
+        end
+    end
+
+    return closestEnemy
+end
+
+-- Função para atirar no inimigo
+local function shootAt(target)
+    local tool = char:FindFirstChildOfClass("Tool")
+    if tool and tool:FindFirstChild("Handle") then
+        local fireEvent = tool:FindFirstChild("Fire") or tool:FindFirstChild("RemoteEvent")
+        if fireEvent and fireEvent:IsA("RemoteEvent") then
+            fireEvent:FireServer(target.HumanoidRootPart.Position)
         end
     end
 end
 
--- Loop de KillAura
-task.spawn(function()
+-- Função para recarregar a arma
+local function reloadWeapon()
+    local tool = char:FindFirstChildOfClass("Tool")
+    if tool and tool:FindFirstChild("Reload") then
+        tool.Reload:FireServer()
+    end
+end
+
+-- Loop principal
+spawn(function()
     while true do
-        task.wait(delay)
+        wait(0.1)
         if enabled then
-            pcall(attack)
+            local target = getClosestEnemy()
+            if target then
+                shootAt(target)
+                -- Verifica se a munição acabou e recarrega
+                local tool = char:FindFirstChildOfClass("Tool")
+                if tool and tool:FindFirstChild("Ammo") and tool.Ammo.Value == 0 then
+                    reloadWeapon()
+                end
+            end
         end
     end
 end)
